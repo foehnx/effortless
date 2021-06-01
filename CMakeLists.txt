@@ -19,6 +19,12 @@ if(EFFORTLESS_DEBUG)
   add_definitions(-DDEBUG_LOG)
 endif()
 
+# Change to minimal catkin build
+if(DEFINED CATKIN_DEVEL_PREFIX)
+  include(cmake/catkin.cmake)
+  return()
+endif()
+
 # Build Tests
 if(NOT EFFORTLESS_TESTS)
   return()
