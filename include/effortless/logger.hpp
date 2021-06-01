@@ -14,20 +14,20 @@ namespace effortless {
 
 namespace {
 struct NoPrint {
-  template <typename T> constexpr NoPrint operator<<(const T &) const noexcept {
+  template<typename T> constexpr NoPrint operator<<(const T &) const noexcept {
     return NoPrint();
   }
-  constexpr NoPrint operator<<(std::ostream &(*)(std::ostream &)) const //
-      noexcept {
+  constexpr NoPrint operator<<(std::ostream &(*)(std::ostream &)) const  //
+    noexcept {
     return NoPrint();
   }
 };
-} // namespace
+}  // namespace
 
-template <typename OutputStream> class LoggerBase {
-public:
+template<typename OutputStream> class LoggerBase {
+ public:
   LoggerBase(const std::string &name, const bool color = true)
-      : name_(padName(name)), colored_(color) {
+    : name_(padName(name)), colored_(color) {
     sink_ = std::make_unique<std::ostream>(std::cout.rdbuf());
     sink_->precision(DEFAULT_PRECISION);
   }
@@ -118,12 +118,12 @@ public:
 #else
   inline constexpr void debug(const char *, ...) const noexcept {}
   inline constexpr NoPrint debug() const { return NoPrint(); }
-  inline constexpr void debug(const std::function<void(void)> &&) const //
-      noexcept {}
+  inline constexpr void debug(const std::function<void(void)> &&) const  //
+    noexcept {}
   static constexpr bool debugEnabled() { return false; }
 #endif
 
-  template <typename T> OutputStream &operator<<(const T &printable) const {
+  template<typename T> OutputStream &operator<<(const T &printable) const {
     return *sink_ << name_ << printable;
   }
 
@@ -137,14 +137,13 @@ public:
 
   inline const std::string &name() const { return name_; }
 
-protected:
+ protected:
   LoggerBase(const std::string &name, const bool color,
              std::shared_ptr<OutputStream> sink)
-      : name_(padName(name)), colored_(color), sink_(sink) {}
+    : name_(padName(name)), colored_(color), sink_(sink) {}
 
   static std::string padName(const std::string &name) {
-    if (name.empty())
-      return "";
+    if (name.empty()) return "";
     const std::string padded = "[" + name + "] ";
     const int extra = LoggerBase::NAME_PADDING - (int)padded.size();
     return extra > 0 ? padded + std::string((size_t)extra, ' ') : padded;
@@ -167,4 +166,4 @@ protected:
 
 using Logger = LoggerBase<std::ostream>;
 
-} // namespace effortless
+}  // namespace effortless
