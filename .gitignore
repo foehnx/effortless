@@ -1,0 +1,9 @@
+.vscode/*
+build/*
+
+**/compile_commands.json
+**/.clangd
+**/checks.json
+**/.cache/*
+
+externals/*
