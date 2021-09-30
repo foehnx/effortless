@@ -10,56 +10,57 @@ namespace effortless {
 
 template<typename T = double> class Statistic {
  public:
-  Statistic(const std::string &name = "Statistic",
-            const int max_samples = std::numeric_limits<int>::max())
-    : name_(name), max_samples_(max_samples) {}
+  Statistic(const std::string &name = "Statistic") : name_(name) {}
   Statistic(const Statistic &rhs) = default;
   Statistic &operator=(const Statistic &rhs) {
     n_ = rhs.n_;
-    mean_ = rhs.mean_;
     last_ = rhs.last_;
-    S_ = rhs.S_;
     min_ = rhs.min_;
     max_ = rhs.max_;
+    sum_ = rhs.sum_;
+    ssum_ = rhs.ssum_;
     return *this;
   }
 
   T operator<<(const T in) {
-    if (!std::isfinite(in)) return in;
+    if (!std::isfinite(in)) return std::numeric_limits<T>::quiet_NaN();
 
-    mean_ = n_ ? mean_ : in;
+    ++n_;
+    sum_ += in;
+    ssum_ += in * in;
     last_ = in;
-    const T mean_last = mean_;
-    n_ += n_ < max_samples_ ? 1 : 0;
-    mean_ += (in - mean_last) / (T)(n_);
-    S_ += (in - mean_last) * (in - mean_);
     min_ = std::min(in, min_);
     max_ = std::max(in, max_);
 
-    return mean_;
+    return mean();
   }
 
   T add(const T in) { return operator<<(in); }
 
-  T operator()() const { return mean_; }
-  operator double() const { return (double)mean_; }
-  operator float() const { return (float)mean_; }
-  operator int() const { return n_; }
+  [[nodiscard]] T operator()() const { return mean(); }
+  [[nodiscard]] operator double() const { return (double)mean(); }
+  [[nodiscard]] operator float() const { return (float)mean(); }
+  [[nodiscard]] operator int() const { return n_; }
 
-  int count() const { return n_; }
-  T last() const { return last_; }
-  T mean() const { return mean_; }
-  T std() const { return n_ > 1 ? std::sqrt(S_ / (T)(n_ - 1)) : 0.0; }
-  T min() const { return min_; }
-  T max() const { return max_; }
+  [[nodiscard]] int count() const { return n_; }
+  [[nodiscard]] T last() const { return last_; }
+  [[nodiscard]] T mean() const { return sum_ / ((T)n_); }
+  [[nodiscard]] T std() const {
+    if (!n_) return 0.0;
+    const T m = mean();
+    return std::sqrt(ssum_ / n_ - m * m);
+  }
+  [[nodiscard]] T min() const { return min_; }
+  [[nodiscard]] T max() const { return max_; }
+  [[nodiscard]] T sum() const { return sum_; }
 
-  const std::string &name() const { return name_; }
+  [[nodiscard]] const std::string &name() const { return name_; }
 
   void reset() {
     n_ = 0;
+    sum_ = 0.0;
+    ssum_ = 0.0;
     last_ = 0.0;
-    mean_ = 0.0;
-    S_ = 0.0;
     min_ = std::numeric_limits<T>::max();
     max_ = std::numeric_limits<T>::min();
   }
@@ -82,11 +83,10 @@ template<typename T = double> class Statistic {
 
  protected:
   const std::string name_;
-  const int max_samples_;
   int n_{0};
-  T mean_{0.0};
+  T sum_{0.0};
+  T ssum_{0.0};
   T last_{0.0};
-  T S_{0.0};
   T min_{std::numeric_limits<T>::max()};
   T max_{std::numeric_limits<T>::min()};
 };

@@ -11,8 +11,8 @@
 using namespace effortless;
 
 TEST_CASE("Logger: Simple Logging", "[logger]") {
-  Logger logger("Test");
-  Timer timer("Printing");
+  Logger logger{"Test"};
+  Timer timer{"Printing"};
   timer.tic();
 
   logger << "This is a text stream log." << std::endl;
@@ -39,7 +39,7 @@ TEST_CASE("Logger: Simple Logging", "[logger]") {
 }
 
 TEST_CASE("Logger: Colorless Logging", "[logger]") {
-  Logger logger("Test", false);
+  Logger logger{"Test", false};
 
   logger << "This is a text stream log without colors but with indicators."
          << std::endl;
@@ -49,7 +49,7 @@ TEST_CASE("Logger: Colorless Logging", "[logger]") {
 }
 
 TEST_CASE("Logger: Fatal Logging", "[logger]") {
-  Logger logger("Test");
+  Logger logger{"Test"};
 
   try {
     logger.fatal(
@@ -71,8 +71,8 @@ TEST_CASE("Logger: Logging from constant functions", "[logger]") {
 
 
 TEST_CASE("Logger: Throttled Logging", "[logger]") {
-  Logger logger("ThrottledLogger");
-  Throttler throttler(logger, 1.0);
+  Logger logger{"ThrottledLogger"};
+  Throttler throttler{logger, 1.0};
 
   for (int i = 0; i < 101; ++i) {
     throttler(&Logger::info, "This should only appear %d times.", 2);
@@ -81,7 +81,7 @@ TEST_CASE("Logger: Throttled Logging", "[logger]") {
 }
 
 TEST_CASE("Logger: Debug Logging", "[logger]") {
-  Logger logger("DebugLogger");
+  Logger logger{"DebugLogger"};
 
   logger.debug("This only prints with %s", "debug logging enabled!");
   logger.debug() << "It also provides a stream device to log debug info!"

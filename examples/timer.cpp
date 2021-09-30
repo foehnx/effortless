@@ -79,23 +79,22 @@ TEST_CASE("Timer: Nested Timing", "[timer]") {
   static constexpr double dt = 0.001;  // us
   static constexpr int dt_us = (int)(1e6 * dt);
 
-  Timer timer_parent("Parent");
-  Timer timer_child("Child");
-  timer_parent.nest(timer_child);
+  Timer timer_parent{"Parent"};
+  NestedTimer<> timer_child = timer_parent.nest("Child");
 
   for (int i = 0; i < N; ++i) {
     timer_parent.tic();
     usleep(dt_us);
-    timer_child.tic();
+    timer_child->tic();
     usleep(dt_us);
-    timer_child.toc();
+    timer_child->toc();
     timer_parent.toc();
   }
 
   Logger("").debug() << timer_parent;
 
-  REQUIRE(timer_child.count() == N);
+  REQUIRE(timer_child->count() == N);
   REQUIRE(timer_parent.count() == N);
-  REQUIRE(timer_child.mean() == Approx(dt).margin(margin));
+  REQUIRE(timer_child->mean() == Approx(dt).margin(margin));
   REQUIRE(timer_parent.mean() == Approx(2.0 * dt).margin(margin));
 }

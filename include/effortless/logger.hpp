@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstdarg>
 #include <cstdio>
 #include <fstream>
@@ -44,70 +45,70 @@ template<typename OutputStream> class LoggerBase {
   void info(const char *msg, ...) const {
     std::va_list args;
     va_start(args, msg);
-    char buf[MAX_CHARS];
-    const int n = std::vsnprintf(buf, MAX_CHARS, msg, args);
+    std::array<char, MAX_CHARS> buf;
+    const int n = std::vsnprintf(buf.data(), MAX_CHARS, msg, args);
     va_end(args);
     if (n < 0 || n >= MAX_CHARS)
       *sink_ << name_ << "=== Logging error ===" << std::endl;
     if (colored_)
-      *sink_ << name_ << buf << std::endl;
+      *sink_ << name_ << buf.data() << std::endl;
     else
-      *sink_ << name_ << INFO << buf << std::endl;
+      *sink_ << name_ << INFO << buf.data() << std::endl;
   }
 
   void warn(const char *msg, ...) const {
     std::va_list args;
     va_start(args, msg);
-    char buf[MAX_CHARS];
-    const int n = std::vsnprintf(buf, MAX_CHARS, msg, args);
+    std::array<char, MAX_CHARS> buf;
+    const int n = std::vsnprintf(buf.data(), MAX_CHARS, msg, args);
     va_end(args);
     if (n < 0 || n >= MAX_CHARS)
       *sink_ << name_ << "=== Logging error ===" << std::endl;
     if (colored_)
-      *sink_ << YELLOW << name_ << buf << RESET << std::endl;
+      *sink_ << YELLOW << name_ << buf.data() << RESET << std::endl;
     else
-      *sink_ << name_ << WARN << buf << std::endl;
+      *sink_ << name_ << WARN << buf.data() << std::endl;
   }
 
   void error(const char *msg, ...) const {
     std::va_list args;
     va_start(args, msg);
-    char buf[MAX_CHARS];
-    const int n = std::vsnprintf(buf, MAX_CHARS, msg, args);
+    std::array<char, MAX_CHARS> buf;
+    const int n = std::vsnprintf(buf.data(), MAX_CHARS, msg, args);
     va_end(args);
     if (n < 0 || n >= MAX_CHARS)
       *sink_ << name_ << "=== Logging error ===" << std::endl;
     if (colored_)
-      *sink_ << RED << name_ << buf << RESET << std::endl;
+      *sink_ << RED << name_ << buf.data() << RESET << std::endl;
     else
-      *sink_ << name_ << ERROR << buf << std::endl;
+      *sink_ << name_ << ERROR << buf.data() << std::endl;
   }
 
   void fatal(const char *msg, ...) const {
     std::va_list args;
     va_start(args, msg);
-    char buf[MAX_CHARS];
-    const int n = std::vsnprintf(buf, MAX_CHARS, msg, args);
+    std::array<char, MAX_CHARS> buf;
+    const int n = std::vsnprintf(buf.data(), MAX_CHARS, msg, args);
     va_end(args);
     if (n < 0 || n >= MAX_CHARS)
       *sink_ << name_ << "=== Logging error ===" << std::endl;
     if (colored_)
-      *sink_ << RED << name_ << buf << RESET << std::endl;
+      *sink_ << RED << name_ << buf.data() << RESET << std::endl;
     else
-      *sink_ << name_ << FATAL << buf << std::endl;
-    throw std::runtime_error(name_ + buf);
+      *sink_ << name_ << FATAL << buf.data() << std::endl;
+    throw std::runtime_error(name_ + buf.data());
   }
 
 #ifdef DEBUG_LOG
   void debug(const char *msg, ...) const {
     std::va_list args;
     va_start(args, msg);
-    char buf[MAX_CHARS];
-    const int n = std::vsnprintf(buf, MAX_CHARS, msg, args);
+    std::array<char, MAX_CHARS> buf;
+    const int n = std::vsnprintf(buf.data(), MAX_CHARS, msg, args);
     va_end(args);
     if (n < 0 || n >= MAX_CHARS)
       *sink_ << name_ << "=== Logging error ===" << std::endl;
-    *sink_ << name_ << buf << std::endl;
+    *sink_ << name_ << buf.data() << std::endl;
   }
   OutputStream &debug() const { return *sink_ << name_; }
   constexpr void debug(const std::function<void(void)> &&lambda) const {
@@ -135,13 +136,9 @@ template<typename OutputStream> class LoggerBase {
     *sink_ << std::string((size_t)n, '\n');
   }
 
-  inline const std::string &name() const { return name_; }
+  [[nodiscard]] inline const std::string &name() const { return name_; }
 
  protected:
-  LoggerBase(const std::string &name, const bool color,
-             std::shared_ptr<OutputStream> sink)
-    : name_(padName(name)), colored_(color), sink_(sink) {}
-
   static std::string padName(const std::string &name) {
     if (name.empty()) return "";
     const std::string padded = "[" + name + "] ";

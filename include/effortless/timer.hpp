@@ -1,7 +1,9 @@
 #pragma once
 
 #include <chrono>
+#include <memory>
 #include <regex>
+#include <sstream>
 
 #include "effortless/logger.hpp"
 #include "effortless/statistic.hpp"
@@ -53,7 +55,10 @@ template<typename T = double> class Timer : public Statistic<T> {
     Statistic<T>::reset();
   }
 
-  void nest(const Timer &timer) { nested_timers_.push_back(&timer); }
+  std::shared_ptr<Timer> nest(const std::string &nested_name) {
+    nested_timers_.emplace_back(std::make_shared<Timer>(nested_name));
+    return nested_timers_.back();
+  }
 
   /// Custom stream operator for outputs.
   friend std::ostream &operator<<(std::ostream &os, const Timer &timer) {
@@ -65,9 +70,9 @@ template<typename T = double> class Timer : public Statistic<T> {
   inline void print() const { std::cout << *this; }
 
  private:
-  std::string printNested(const int level = 0,
-                          const int percentage = -1) const {
-    const int name_width = 30 - 2 * level - 3 * (int)(percentage >= 0);
+  [[nodiscard]] std::string printNested(const int level = 0,
+                                        const T parent_sum = 0.0) const {
+    const int name_width = 30 - 2 * level;
     std::ostringstream ss;
     if (this->n_ < 1) {
       ss << std::left << std::setw(name_width) << this->name_
@@ -78,29 +83,33 @@ template<typename T = double> class Timer : public Statistic<T> {
     ss.precision(3);
 
     ss << std::left << std::setw(name_width) << this->name_;
-    if (percentage >= 0) ss << std::right << std::setw(2) << percentage << "%";
-    ss << std::right << std::setw(5) << this->n_ << "  calls   "
+    ss << std::right << std::setw(8) << this->sum_ << "s  ";
+    if (parent_sum != 0.0)
+      ss << std::right << std::setw(3) << (int)(100.0 * this->sum_ / parent_sum)
+         << "% ";
+    else
+      ss << std::string(5, ' ');
+    ss << std::right << std::setw(8) << this->n_ << "  calls   "
        << "mean|std: ";
-    ss << std::right << std::setw(8) << 1000 * this->mean_ << " | ";
-    ss << std::left << std::setw(8) << 1000 * this->S_ << "  [min|max:  ";
+    ss << std::right << std::setw(8) << 1000 * this->mean() << " | ";
+    ss << std::left << std::setw(8) << 1000 * this->std() << "  [min|max:  ";
     ss << std::right << std::setw(8) << 1000 * this->min_ << " | ";
     ss << std::left << std::setw(8) << 1000 * this->max_ << "]"
        << " in ms\n";
 
-    for (const Timer *const nested : nested_timers_) {
+    for (const std::shared_ptr<Timer> &nested : nested_timers_) {
       for (int i = 0; i < level; ++i) ss << "| ";
-
-      ss << "|-"
-         << nested->printNested(level + 1,
-                                (int)(100 * nested->mean() / this->mean()));
+      ss << "|-" << nested->printNested(level + 1, this->sum_);
     }
     return ss.str();
   }
 
   using TimePoint = std::chrono::high_resolution_clock::time_point;
   TimePoint t_start_;
-  std::vector<const Timer *> nested_timers_;
+  std::vector<std::shared_ptr<Timer>> nested_timers_;
 };
+
+template<typename T = double> using NestedTimer = std::shared_ptr<Timer<T>>;
 
 /*
  * Helper Timer class to time scopes from Timer constructor to destructor.
@@ -118,7 +127,10 @@ template<typename T = double> class ScopedTimer : public Timer<T> {
 
   ~ScopedTimer() {
     this->toc();
-    if (logger != nullptr) *logger << *this;
+    if (logger != nullptr)
+      *logger << *this;
+    else
+      std::cout << *this;
   }
 
  private:

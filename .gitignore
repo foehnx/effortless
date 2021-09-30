@@ -6,4 +6,6 @@ build/*
 **/checks.json
 **/.cache/*
 
+**/.DS_store
+
 externals/*

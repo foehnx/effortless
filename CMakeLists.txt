@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.11.0)
+cmake_minimum_required(VERSION 2.8.12...3.13)
 project(effortless VERSION 0.0.1)
 set(EFFORTLESS_INCLUDE_DIR include REALPATH)
 include_directories("include")
@@ -69,6 +69,19 @@ add_definitions(-Wunreachable-code)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS On)
 
+# Compiler Specific
+set(EFFORTLESS_COMPILER_LIBRARIES)
+if (CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
+  add_definitions(-Wno-shorten-64-to-32)
+  add_definitions(-Wno-sign-conversion)
+  add_definitions(-Wno-implicit-int-float-conversion)
+  add_definitions(-Wno-c99-extensions)
+  add_definitions(-Wno-implicit-int-conversion)
+else()
+  add_definitions(-Wno-deprecated-copy)
+  set(EFFORTLESS_COMPILER_LIBRARIES 'stdc++fs')
+endif()
+
 # Set default build type
 if (NOT EXISTS ${CMAKE_BINARY_DIR}/CMakeCache.txt)
   if (NOT CMAKE_BUILD_TYPE)
@@ -92,7 +105,7 @@ file(GLOB_RECURSE EFFORTLESS_EXAMPLES
 enable_testing()
 add_executable(tests ${EFFORTLESS_EXAMPLES})
 target_link_libraries(tests PRIVATE
-Catch2::Catch2
-stdc++fs
+  Catch2::Catch2
+  ${EFFORTLESS_COMPILER_LIBRARIES}
 )
 add_test(tests tests)
