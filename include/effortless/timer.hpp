@@ -35,7 +35,7 @@ template<typename T = double> class Timer : public Statistic<T> {
   Timer(const Timer &other) = default;
 
   /// Start the timer.
-  inline void tic() { t_start_ = std::chrono::high_resolution_clock::now(); }
+  void tic() { t_start_ = std::chrono::high_resolution_clock::now(); }
 
   /// Stops timer, calculates timing, also tics again.
   T toc() {
@@ -67,7 +67,7 @@ template<typename T = double> class Timer : public Statistic<T> {
   }
 
   /// Print timing information to console.
-  inline void print() const { std::cout << *this; }
+  void print() const { std::cout << *this; }
 
  private:
   [[nodiscard]] std::string printNested(const int level = 0,

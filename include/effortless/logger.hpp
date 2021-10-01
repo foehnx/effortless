@@ -8,7 +8,6 @@
 #include <iomanip>
 #include <iostream>
 #include <memory>
-#include <ostream>
 #include <string>
 
 namespace effortless {
@@ -25,20 +24,27 @@ struct NoPrint {
 };
 }  // namespace
 
-template<typename OutputStream> class LoggerBase {
+class Logger {
  public:
-  LoggerBase(const std::string &name, const bool color = true)
-    : name_(padName(name)), colored_(color) {
-    sink_ = std::make_unique<std::ostream>(std::cout.rdbuf());
+  Logger(const std::string &name, const bool color = true)
+    : name_(padName(name)), colored_(color), sink_(&std::cout) {
     sink_->precision(DEFAULT_PRECISION);
   }
 
-  inline std::streamsize precision(const std::streamsize n) {
+  Logger() = delete;
+  Logger(const Logger &) = delete;
+  Logger(const Logger &&) = delete;
+  ~Logger() = default;
+
+  std::streamsize precision(const std::streamsize n) {
     return sink_->precision(n);
   }
-  inline void scientific(const bool on = true) {
-    *sink_ << (on ? std::scientific : std::fixed);
+
+  void scientific(const bool enable = true) {
+    *sink_ << (enable ? std::scientific : std::fixed);
   }
+
+  void color(const bool enable = true) { colored_ = enable; }
 
   static constexpr int MAX_CHARS = 256;
 
@@ -117,32 +123,34 @@ template<typename OutputStream> class LoggerBase {
 
   static constexpr bool debugEnabled() { return true; }
 #else
-  inline constexpr void debug(const char *, ...) const noexcept {}
-  inline constexpr NoPrint debug() const { return NoPrint(); }
-  inline constexpr void debug(const std::function<void(void)> &&) const  //
+  constexpr void debug(const char *, ...) const noexcept {}
+  [[nodiscard]] constexpr NoPrint debug() const { return NoPrint(); }
+  constexpr void debug(const std::function<void(void)> &&) const  //
     noexcept {}
   static constexpr bool debugEnabled() { return false; }
 #endif
 
-  template<typename T> OutputStream &operator<<(const T &printable) const {
+  template<typename T> std::ostream &operator<<(const T &printable) const {
     return *sink_ << name_ << printable;
   }
 
-  OutputStream &operator<<(OutputStream &(*printable)(OutputStream &)) const {
+  std::ostream &operator<<(std::ostream &(*printable)(std::ostream &)) const {
     return *sink_ << name_ << printable;
   }
 
-  inline void newline(const int n = 1) {
-    *sink_ << std::string((size_t)n, '\n');
+  void newline() { *sink_ << '\n'; }
+
+  void newline(const int n) {
+    for (int i = 0; i < n; ++i) *sink_ << '\n';
   }
 
-  [[nodiscard]] inline const std::string &name() const { return name_; }
+  [[nodiscard]] const std::string &name() const { return name_; }
 
  protected:
   static std::string padName(const std::string &name) {
     if (name.empty()) return "";
     const std::string padded = "[" + name + "] ";
-    const int extra = LoggerBase::NAME_PADDING - (int)padded.size();
+    const int extra = NAME_PADDING - (int)padded.size();
     return extra > 0 ? padded + std::string((size_t)extra, ' ') : padded;
   }
 
@@ -157,10 +165,48 @@ template<typename OutputStream> class LoggerBase {
   static constexpr char FATAL[] = "Fatal:   ";
 
   const std::string name_;
-  const bool colored_;
-  std::shared_ptr<OutputStream> sink_;
+  bool colored_;
+  std::ostream *sink_;
 };
 
-using Logger = LoggerBase<std::ostream>;
+#if __has_include(<filesystem>)
+#include <filesystem>
+namespace fs = std::filesystem;
+#define _fs_found_
+#elif __has_include(<experimental/filesystem>)
+#include <experimental/filesystem>
+#define _fs_found_
+namespace fs = std::experimental::filesystem;
+#else
+#error "no filesystem support found"
+#endif
+
+#ifdef _fs_found_
+class FileLogger : public Logger {
+ public:
+  FileLogger(const std::string &name, const fs::path &file)
+    : Logger(name, false) {
+    ofs.open(file);
+    if (ofs.is_open()) {
+      sink_ = &ofs;
+      sink_->precision(DEFAULT_PRECISION);
+    } else {
+      color(true);
+      error("Could not open file \'%s\'!\nFallback to console logging!",
+            file.c_str());
+    }
+  }
+
+  FileLogger() = delete;
+  FileLogger(const Logger &) = delete;
+  FileLogger(const Logger &&) = delete;
+  ~FileLogger() { ofs.flush(); }
+
+ private:
+  std::ofstream ofs;
+};
+
+#endif
+#undef _fe_found_
 
 }  // namespace effortless
