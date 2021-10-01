@@ -10,6 +10,8 @@
 
 namespace effortless {
 
+using Scalar = double;
+
 /*
  * Timer class to perform runtime analytics.
  *
@@ -29,21 +31,22 @@ namespace effortless {
  * or `print()` which always prints to console.
  *
  */
-template<typename T = double> class Timer : public Statistic<T> {
+class Timer : public Statistic {
  public:
-  Timer(const std::string name = "") : Statistic<T>("Timer " + name) {}
+  Timer(const std::string &name = "") : Statistic("Timer " + name) {}
   Timer(const Timer &other) = default;
 
   /// Start the timer.
   void tic() { t_start_ = std::chrono::high_resolution_clock::now(); }
 
   /// Stops timer, calculates timing, also tics again.
-  T toc() {
+  Scalar toc() {
     // Calculate timing.
     const TimePoint t_end = std::chrono::high_resolution_clock::now();
-    const T dt = 1e-9 * (T)std::chrono::duration_cast<std::chrono::nanoseconds>(
-                          t_end - t_start_)
-                          .count();
+    const Scalar dt =
+      1e-9 * (Scalar)std::chrono::duration_cast<std::chrono::nanoseconds>(
+               t_end - t_start_)
+               .count();
 
     t_start_ = t_end;
     return this->add(dt);
@@ -52,7 +55,7 @@ template<typename T = double> class Timer : public Statistic<T> {
   /// Reset saved timings and calls;
   void reset() {
     t_start_ = TimePoint();
-    Statistic<T>::reset();
+    Statistic::reset();
   }
 
   std::shared_ptr<Timer> nest(const std::string &nested_name) {
@@ -71,7 +74,7 @@ template<typename T = double> class Timer : public Statistic<T> {
 
  private:
   [[nodiscard]] std::string printNested(const int level = 0,
-                                        const T parent_sum = 0.0) const {
+                                        const Scalar parent_sum = 0.0) const {
     const int name_width = 30 - 2 * level;
     std::ostringstream ss;
     if (this->n_ < 1) {
@@ -109,7 +112,7 @@ template<typename T = double> class Timer : public Statistic<T> {
   std::vector<std::shared_ptr<Timer>> nested_timers_;
 };
 
-template<typename T = double> using NestedTimer = std::shared_ptr<Timer<T>>;
+using NestedTimer = std::shared_ptr<Timer>;
 
 /*
  * Helper Timer class to time scopes from Timer constructor to destructor.
@@ -117,11 +120,11 @@ template<typename T = double> using NestedTimer = std::shared_ptr<Timer<T>>;
  * This effectively instantiates a timer and calls `tic()` in its constructor
  * and `toc()` and ` print()` in its destructor.
  */
-template<typename T = double> class ScopedTimer : public Timer<T> {
+class ScopedTimer : public Timer {
  public:
-  ScopedTimer(const std::string &name = "") : Timer<T>(name) { this->tic(); }
+  ScopedTimer(const std::string &name = "") : Timer(name) { this->tic(); }
   ScopedTimer(const std::string &name, Logger &&logger)
-    : Timer<T>(name), logger(&logger) {
+    : Timer(name), logger(&logger) {
     this->tic();
   }
 
@@ -137,13 +140,13 @@ template<typename T = double> class ScopedTimer : public Timer<T> {
   Logger *logger{nullptr};
 };
 
-template<typename T = double> class ScopedTicToc {
+class ScopedTicToc {
  public:
-  ScopedTicToc(Timer<T> &timer) : timer(timer) { timer.tic(); }
+  ScopedTicToc(Timer &timer) : timer(timer) { timer.tic(); }
   ~ScopedTicToc() { timer.toc(); }
 
  private:
-  Timer<T> &timer;
+  Timer &timer;
 };
 
 /*
@@ -153,9 +156,9 @@ template<typename T = double> class ScopedTicToc {
  * tic-toc it. Once the program ends, the destructor of StaticTimer will print
  * its stats.
  */
-template<typename T = double> class StaticTimer : public Timer<T> {
+template<typename T = double> class StaticTimer : public Timer {
  public:
-  using Timer<T>::Timer;
+  using Timer::Timer;
 
   ~StaticTimer() { this->print(); }
 };

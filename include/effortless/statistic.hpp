@@ -8,7 +8,9 @@
 
 namespace effortless {
 
-template<typename T = double> class Statistic {
+using Scalar = double;
+
+class Statistic {
  public:
   Statistic(const std::string &name = "Statistic") : name_(name) {}
   Statistic(const Statistic &rhs) = default;
@@ -22,8 +24,8 @@ template<typename T = double> class Statistic {
     return *this;
   }
 
-  T operator<<(const T in) {
-    if (!std::isfinite(in)) return std::numeric_limits<T>::quiet_NaN();
+  Scalar operator<<(const Scalar in) {
+    if (!std::isfinite(in)) return std::numeric_limits<Scalar>::quiet_NaN();
 
     ++n_;
     sum_ += in;
@@ -35,24 +37,24 @@ template<typename T = double> class Statistic {
     return mean();
   }
 
-  T add(const T in) { return operator<<(in); }
+  Scalar add(const Scalar in) { return operator<<(in); }
 
-  [[nodiscard]] T operator()() const { return mean(); }
+  [[nodiscard]] Scalar operator()() const { return mean(); }
   [[nodiscard]] operator double() const { return (double)mean(); }
   [[nodiscard]] operator float() const { return (float)mean(); }
   [[nodiscard]] operator int() const { return n_; }
 
   [[nodiscard]] int count() const { return n_; }
-  [[nodiscard]] T last() const { return last_; }
-  [[nodiscard]] T mean() const { return sum_ / ((T)n_); }
-  [[nodiscard]] T std() const {
+  [[nodiscard]] Scalar last() const { return last_; }
+  [[nodiscard]] Scalar mean() const { return sum_ / ((Scalar)n_); }
+  [[nodiscard]] Scalar std() const {
     if (!n_) return 0.0;
-    const T m = mean();
+    const Scalar m = mean();
     return std::sqrt(ssum_ / n_ - m * m);
   }
-  [[nodiscard]] T min() const { return min_; }
-  [[nodiscard]] T max() const { return max_; }
-  [[nodiscard]] T sum() const { return sum_; }
+  [[nodiscard]] Scalar min() const { return min_; }
+  [[nodiscard]] Scalar max() const { return max_; }
+  [[nodiscard]] Scalar sum() const { return sum_; }
 
   [[nodiscard]] const std::string &name() const { return name_; }
 
@@ -61,8 +63,8 @@ template<typename T = double> class Statistic {
     sum_ = 0.0;
     ssum_ = 0.0;
     last_ = 0.0;
-    min_ = std::numeric_limits<T>::max();
-    max_ = std::numeric_limits<T>::min();
+    min_ = std::numeric_limits<Scalar>::max();
+    max_ = std::numeric_limits<Scalar>::min();
   }
 
   friend std::ostream &operator<<(std::ostream &os, const Statistic &s) {
@@ -84,11 +86,11 @@ template<typename T = double> class Statistic {
  protected:
   const std::string name_;
   int n_{0};
-  T sum_{0.0};
-  T ssum_{0.0};
-  T last_{0.0};
-  T min_{std::numeric_limits<T>::max()};
-  T max_{std::numeric_limits<T>::min()};
+  Scalar sum_{0.0};
+  Scalar ssum_{0.0};
+  Scalar last_{0.0};
+  Scalar min_{std::numeric_limits<Scalar>::max()};
+  Scalar max_{std::numeric_limits<Scalar>::min()};
 };
 
 }  // namespace effortless

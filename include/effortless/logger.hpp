@@ -116,7 +116,7 @@ class Logger {
       *sink_ << name_ << "=== Logging error ===" << std::endl;
     *sink_ << name_ << buf.data() << std::endl;
   }
-  OutputStream &debug() const { return *sink_ << name_; }
+  std::ostream &debug() const { return *sink_ << name_; }
   constexpr void debug(const std::function<void(void)> &&lambda) const {
     lambda();
   }
@@ -205,7 +205,6 @@ class FileLogger : public Logger {
  private:
   std::ofstream ofs;
 };
-
 #endif
 #undef _fe_found_
 
