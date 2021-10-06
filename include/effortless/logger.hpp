@@ -10,6 +10,19 @@
 #include <memory>
 #include <string>
 
+// Handle filesystem include an namespace for various stdlib versions.
+#if __has_include(<filesystem>)
+#include <filesystem>
+namespace fs = std::filesystem;
+#define _fs_found_
+#elif __has_include(<experimental/filesystem>)
+#include <experimental/filesystem>
+#define _fs_found_
+namespace fs = std::experimental::filesystem;
+#else
+#error "no filesystem support found"
+#endif
+
 namespace effortless {
 
 namespace {
@@ -168,18 +181,6 @@ class Logger {
   bool colored_;
   std::ostream *sink_;
 };
-
-#if __has_include(<filesystem>)
-#include <filesystem>
-namespace fs = std::filesystem;
-#define _fs_found_
-#elif __has_include(<experimental/filesystem>)
-#include <experimental/filesystem>
-#define _fs_found_
-namespace fs = std::experimental::filesystem;
-#else
-#error "no filesystem support found"
-#endif
 
 #ifdef _fs_found_
 class FileLogger : public Logger {
