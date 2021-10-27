@@ -1,5 +1,6 @@
 #include "effortless/logger.hpp"
 
+#define CATCH_CONFIG_ENABLE_BENCHMARKING
 #include <catch2/catch.hpp>
 #include <chrono>
 #include <cmath>
@@ -38,14 +39,15 @@ TEST_CASE("Logger: Simple Logging", "[logger]") {
          << timer << std::endl;
 }
 
-TEST_CASE("Logger: Colorless Logging", "[logger]") {
-  Logger logger{"Test", false};
+TEST_CASE("Logger: Benchmark", "[logger][!benchmark]") {
+  Logger logger{"Test"};
 
-  logger << "This is a text stream log without colors but with indicators."
-         << std::endl;
-  logger.info("This is an info log.");
-  logger.warn("This could be a warning, but just for demo.");
-  logger.error("This could be an error, but just for demo.");
+  std::cout.setstate(std::ios_base::failbit);
+  BENCHMARK("info w/o args") { logger.info("Ignore this test message!"); };
+  BENCHMARK("info with args") {
+    logger.info("Ignore this %s!", "test message");
+  };
+  std::cout.clear();
 }
 
 TEST_CASE("Logger: Fatal Logging", "[logger]") {
@@ -69,6 +71,29 @@ TEST_CASE("Logger: Logging from constant functions", "[logger]") {
   caller.printInfo("This should log just fine from a const call!");
 }
 
+TEST_CASE("Logger: Colorless Logging", "[logger]") {
+  Logger logger{"Test", {.colored = false}};
+
+  logger << "This is a text stream log without colors but with indicators."
+         << std::endl;
+  logger.info("This is an info log.");
+  logger.warn("This could be a warning, but just for demo.");
+  logger.error("This could be an error, but just for demo.");
+}
+
+TEST_CASE("Logger: Timed logging", "[logger]") {
+  Logger logger{"Test", {.timed = true}};
+  logger.info("This is an info log.");
+  std::this_thread::sleep_for(std::chrono::seconds(1));
+  logger.info("This is a later info log.");
+}
+
+TEST_CASE("Logger: Relative Timed logging", "[logger]") {
+  Logger logger{"Test", {.timed = true, .relative_time = true}};
+  logger.info("This is an info log.");
+  std::this_thread::sleep_for(std::chrono::seconds(1));
+  logger.info("This is a later info log.");
+}
 
 TEST_CASE("Logger: Throttled Logging", "[logger]") {
   Logger logger{"ThrottledLogger"};
