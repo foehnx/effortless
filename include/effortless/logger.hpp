@@ -29,11 +29,11 @@ namespace effortless {
 namespace {
 struct NoPrint {
   template<typename T> constexpr NoPrint operator<<(const T &) const noexcept {
-    return NoPrint();
+    return {};
   }
   constexpr NoPrint operator<<(std::ostream &(*)(std::ostream &)) const  //
     noexcept {
-    return NoPrint();
+    return {};
   }
 };
 }  // namespace
