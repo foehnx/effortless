@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstdarg>
+#include <cstddef>
 #include <cstdio>
 #include <fstream>
 #include <functional>
@@ -28,20 +29,38 @@ namespace effortless {
 namespace {
 struct NoPrint {
   template<typename T> constexpr NoPrint operator<<(const T &) const noexcept {
-    return NoPrint();
+    return {};
   }
   constexpr NoPrint operator<<(std::ostream &(*)(std::ostream &)) const  //
     noexcept {
-    return NoPrint();
+    return {};
   }
 };
 }  // namespace
 
+struct LoggerSettings {
+  bool colored = true;
+  bool timed = false;
+  bool relative_time = false;
+
+  bool scientific = false;
+  int initial_precision = 3;
+
+  int name_padding = 20;
+  time_t time_since;
+  std::string time_format = "%H:%M:%S";
+};
+
 class Logger {
  public:
-  Logger(const std::string &name, const bool color = true)
-    : name_(padName(name)), colored_(color), sink_(&std::cout) {
-    sink_->precision(DEFAULT_PRECISION);
+  Logger(const std::string &name,
+         const LoggerSettings &settings = LoggerSettings())
+    : sink_(&std::cout),
+      settings_(settings),
+      name_(padName(name, settings.name_padding)) {
+    if (settings_.relative_time) settings_.time_since = time(nullptr);
+    precision(settings_.initial_precision);
+    scientific(settings.scientific);
   }
 
   Logger() = delete;
@@ -57,79 +76,48 @@ class Logger {
     *sink_ << (enable ? std::scientific : std::fixed);
   }
 
-  void color(const bool enable = true) { colored_ = enable; }
+  void color(const bool enable = true) { settings_.colored = enable; }
 
-  static constexpr int MAX_CHARS = 256;
+  static constexpr int MAX_CHARS = 51;
 
   void info(const char *msg, ...) const {
     std::va_list args;
     va_start(args, msg);
-    std::array<char, MAX_CHARS> buf;
-    const int n = std::vsnprintf(buf.data(), MAX_CHARS, msg, args);
+    print(INFO, NOCOLOR, msg, args);
     va_end(args);
-    if (n < 0 || n >= MAX_CHARS)
-      *sink_ << name_ << "=== Logging error ===" << std::endl;
-    if (colored_)
-      *sink_ << name_ << buf.data() << std::endl;
-    else
-      *sink_ << name_ << INFO << buf.data() << std::endl;
   }
 
   void warn(const char *msg, ...) const {
     std::va_list args;
     va_start(args, msg);
-    std::array<char, MAX_CHARS> buf;
-    const int n = std::vsnprintf(buf.data(), MAX_CHARS, msg, args);
+    print(WARN, YELLOW, msg, args);
     va_end(args);
-    if (n < 0 || n >= MAX_CHARS)
-      *sink_ << name_ << "=== Logging error ===" << std::endl;
-    if (colored_)
-      *sink_ << YELLOW << name_ << buf.data() << RESET << std::endl;
-    else
-      *sink_ << name_ << WARN << buf.data() << std::endl;
   }
 
   void error(const char *msg, ...) const {
     std::va_list args;
     va_start(args, msg);
-    std::array<char, MAX_CHARS> buf;
-    const int n = std::vsnprintf(buf.data(), MAX_CHARS, msg, args);
+    print(ERROR, RED, msg, args);
     va_end(args);
-    if (n < 0 || n >= MAX_CHARS)
-      *sink_ << name_ << "=== Logging error ===" << std::endl;
-    if (colored_)
-      *sink_ << RED << name_ << buf.data() << RESET << std::endl;
-    else
-      *sink_ << name_ << ERROR << buf.data() << std::endl;
   }
 
   void fatal(const char *msg, ...) const {
     std::va_list args;
     va_start(args, msg);
-    std::array<char, MAX_CHARS> buf;
-    const int n = std::vsnprintf(buf.data(), MAX_CHARS, msg, args);
+    print(FATAL, RED, msg, args);
     va_end(args);
-    if (n < 0 || n >= MAX_CHARS)
-      *sink_ << name_ << "=== Logging error ===" << std::endl;
-    if (colored_)
-      *sink_ << RED << name_ << buf.data() << RESET << std::endl;
-    else
-      *sink_ << name_ << FATAL << buf.data() << std::endl;
-    throw std::runtime_error(name_ + buf.data());
+    throw std::runtime_error(name_);
   }
 
 #ifdef DEBUG_LOG
   void debug(const char *msg, ...) const {
     std::va_list args;
     va_start(args, msg);
-    std::array<char, MAX_CHARS> buf;
-    const int n = std::vsnprintf(buf.data(), MAX_CHARS, msg, args);
+    print("", NOCOLOR, msg, args);
     va_end(args);
-    if (n < 0 || n >= MAX_CHARS)
-      *sink_ << name_ << "=== Logging error ===" << std::endl;
-    *sink_ << name_ << buf.data() << std::endl;
   }
-  std::ostream &debug() const { return *sink_ << name_; }
+
+  [[nodiscard]] std::ostream &debug() const { return *sink_ << name_; }
   constexpr void debug(const std::function<void(void)> &&lambda) const {
     lambda();
   }
@@ -160,16 +148,40 @@ class Logger {
   [[nodiscard]] const std::string &name() const { return name_; }
 
  protected:
-  static std::string padName(const std::string &name) {
+  void print(const char *prefix, const char *color, const char *msg,
+             const std::va_list &args) const {
+    std::array<char, MAX_CHARS> buf;
+    std::vsnprintf(buf.data(), MAX_CHARS, msg, args);
+
+    if (settings_.colored) *sink_ << color;
+
+    *sink_ << name_;
+
+    if (!settings_.colored) *sink_ << prefix;
+
+    if (settings_.timed) {
+      const time_t now = std::time(nullptr) - settings_.time_since;
+      if (settings_.relative_time) {
+        *sink_ << now << "s  ";
+      } else {
+        auto tm = *std::localtime(&now);
+        *sink_ << std::put_time(&tm, settings_.time_format.c_str()) << "  ";
+      }
+    }
+
+    *sink_ << buf.data();
+
+    *sink_ << '\n';
+  }
+
+  static std::string padName(const std::string &name, const int padding) {
     if (name.empty()) return "";
     const std::string padded = "[" + name + "] ";
-    const int extra = NAME_PADDING - (int)padded.size();
+    const int extra = padding - (int)padded.size();
     return extra > 0 ? padded + std::string((size_t)extra, ' ') : padded;
   }
 
-  static constexpr int DEFAULT_PRECISION = 3;
-  static constexpr int NAME_PADDING = 20;
-  static constexpr char RESET[] = "\033[0m";
+  static constexpr char NOCOLOR[] = "\033[0m";
   static constexpr char RED[] = "\033[31m";
   static constexpr char YELLOW[] = "\033[33m";
   static constexpr char INFO[] = "Info:    ";
@@ -177,20 +189,21 @@ class Logger {
   static constexpr char ERROR[] = "Error:   ";
   static constexpr char FATAL[] = "Fatal:   ";
 
-  const std::string name_;
-  bool colored_;
   std::ostream *sink_;
+  LoggerSettings settings_;
+  const std::string name_;
 };
 
 #ifdef _fs_found_
 class FileLogger : public Logger {
  public:
-  FileLogger(const std::string &name, const fs::path &file)
-    : Logger(name, false) {
+  FileLogger(const std::string &name, const fs::path &file,
+             const LoggerSettings &settings = LoggerSettings())
+    : Logger(name, settings) {
     ofs.open(file);
     if (ofs.is_open()) {
       sink_ = &ofs;
-      sink_->precision(DEFAULT_PRECISION);
+      sink_->precision(settings.initial_precision);
     } else {
       color(true);
       error("Could not open file \'%s\'!\nFallback to console logging!",
@@ -207,6 +220,6 @@ class FileLogger : public Logger {
   std::ofstream ofs;
 };
 #endif
-#undef _fe_found_
+#undef _fs_found_
 
 }  // namespace effortless
